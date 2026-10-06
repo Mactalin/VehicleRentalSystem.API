@@ -1,0 +1,66 @@
+# Build results
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# Rider
+.idea/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Test results
+TestResults/
+*.trx
+
+# ASP.NET Core
+appsettings.Development.json
+appsettings.Local.json
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log
+
+# Entity Framework
+# Uncomment if you don't want to commit migrations
+# Migrations/
+
+# Publish
+publish/
+*.pubxml
+*.publishproj
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Code coverage
+coverage/
+*.coverage
+*.coveragexml
+
+# Azure
+.azure/
+
+# User secrets
+secrets.json
