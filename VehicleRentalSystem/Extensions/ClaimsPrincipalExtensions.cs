@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
+using VehicleRentalSystem.Application.Exceptions;
 
-namespace VehicleRentalSystem.Application.Exceptions
+namespace VehicleRentalSystem.Extensions
 {
     public static class ClaimsPrincipalExtensions
     {

@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using VehicleRentalSystem.Application.Dtos.User;
-using VehicleRentalSystem.Application.Exceptions;
 using VehicleRentalSystem.Application.Interface_Service;
 using VehicleRentalSystem.Authorization;
+using VehicleRentalSystem.Extensions;
 
 namespace VehicleRentalSystem.Controllers
 {
