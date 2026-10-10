@@ -98,12 +98,12 @@ namespace VehicleRentalSystem
             var app = builder.Build();
 
 
-            using (var scope = app.Services.CreateScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.Database.Migrate();
-                DbSeeder.SeedAsync(db).GetAwaiter().GetResult();
-            }
+            //using (var scope = app.Services.CreateScope())
+            //{
+            //    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            //    db.Database.Migrate();
+            //    DbSeeder.SeedAsync(db).GetAwaiter().GetResult();
+            //}
 
 
             // Configure the HTTP request pipeline.
