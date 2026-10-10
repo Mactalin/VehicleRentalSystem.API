@@ -1,8 +1,10 @@
-﻿using VehicleRentalSystem.Domain.Entities;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using VehicleRentalSystem.Domain.Entities;
+using VehicleRentalSystem.Domain.Enums;
 
-namespace VehicleRentalSystem.Domain.Interface_Repository;
-
-public class VehicleSearchCriteria
+namespace VehicleRentalSystem.Domain.Interface_Repository
 {
     public int? BranchId { get; set; }
     public string? City { get; set; }
@@ -17,8 +19,22 @@ public class VehicleSearchCriteria
 }
 
 // Anbu owns the Vehicle entity; Mac only needs the search + availability query.
-public interface IVehicleRepository : IGenericRepository<Vehicle>
-{
-    Task<(IReadOnlyList<Vehicle> Items, int Total)> SearchAvailableAsync(
-        VehicleSearchCriteria criteria, CancellationToken ct = default);
+    public interface IVehicleRepository : IGenericRepository<Vehicle>
+    {
+        Task<Vehicle?> GetByIdWithDetailsAsync(int id);
+        Task<Vehicle?> GetByRegistrationNumberAsync(string registrationNumber);
+        Task<bool> RegistrationNumberExistsAsync(string registrationNumber);
+        Task<IEnumerable<Vehicle>> GetAllWithDetailsAsync();
+        Task<IEnumerable<Vehicle>> GetByBranchAsync(int branchId);
+        Task<IEnumerable<Vehicle>> GetByStatusAsync(VehicleStatus status);
+
+        Task AddImageAsync(VehicleImage image);
+        Task<VehicleImage?> GetImageByIdAsync(int imageId);
+        void DeleteImage(VehicleImage image);
+
+        Task AddDocumentAsync(VehicleDocument document);
+        Task<VehicleDocument?> GetDocumentByIdAsync(int documentId);
+        void DeleteDocument(VehicleDocument document);
+        Task<IEnumerable<VehicleDocument>> GetDocumentsExpiringBeforeAsync(DateOnly date);
+    }
 }

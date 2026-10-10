@@ -14,64 +14,54 @@ namespace VehicleRentalSystem.Infrastructure.Repository
     {
         public VehicleRepository(AppDbContext context) : base(context) { }
 
-        public async Task<(IReadOnlyList<Vehicle> Items, int Total)> SearchAvailableAsync(
-            VehicleSearchCriteria criteria, CancellationToken ct = default)
-        {
-            var page = Math.Max(1, criteria.Page);
-            var pageSize = Math.Clamp(criteria.PageSize, 1, 100);
+        private IQueryable<Vehicle> WithDetails() =>
+            _dbSet.Include(v => v.Category)
+                  .Include(v => v.Branch)
+                  .Include(v => v.Images)
+                  .Include(v => v.Documents);
 
-            var query = _dbSet.AsNoTracking().Where(v => v.IsActive);
+        public async Task<Vehicle?> GetByIdWithDetailsAsync(int id) =>
+            await WithDetails().FirstOrDefaultAsync(v => v.Id == id);
 
-            // Location
-            if (criteria.BranchId.HasValue)
-                query = query.Where(v => v.BranchId == criteria.BranchId.Value);
+        public async Task<Vehicle?> GetByRegistrationNumberAsync(string registrationNumber) =>
+            await _dbSet.FirstOrDefaultAsync(v => v.RegistrationNumber == registrationNumber);
 
-            if (!string.IsNullOrWhiteSpace(criteria.City))
-            {
-                var city = criteria.City.Trim();
-                query = query.Where(v => _context.Branches.Any(b => b.Id == v.BranchId && b.City == city));
-            }
+        public async Task<bool> RegistrationNumberExistsAsync(string registrationNumber) =>
+            await _dbSet.AnyAsync(v => v.RegistrationNumber == registrationNumber);
 
-            // Category and price
-            if (criteria.CategoryId.HasValue)
-                query = query.Where(v => v.CategoryId == criteria.CategoryId.Value);
+        public async Task<IEnumerable<Vehicle>> GetAllWithDetailsAsync() =>
+            await WithDetails().AsNoTracking().OrderBy(v => v.RegistrationNumber).ToListAsync();
 
-            if (criteria.MinPrice.HasValue)
-                query = query.Where(v => v.DailyRate >= criteria.MinPrice.Value);
+        public async Task<IEnumerable<Vehicle>> GetByBranchAsync(int branchId) =>
+            await WithDetails().AsNoTracking().Where(v => v.BranchId == branchId).ToListAsync();
 
-            if (criteria.MaxPrice.HasValue)
-                query = query.Where(v => v.DailyRate <= criteria.MaxPrice.Value);
+        public async Task<IEnumerable<Vehicle>> GetByStatusAsync(VehicleStatus status) =>
+            await WithDetails().AsNoTracking().Where(v => v.Status == status).ToListAsync();
 
-            // Real-time availability for the requested range
-            if (criteria.From.HasValue && criteria.To.HasValue)
-            {
-                var from = criteria.From.Value;
-                var to = criteria.To.Value;
-                var now = DateTime.UtcNow;
+        // Images
+        public async Task AddImageAsync(VehicleImage image) =>
+            await _context.VehicleImages.AddAsync(image);
 
-                query = query.Where(v => !_context.Bookings.Any(b =>
-                    b.VehicleId == v.Id
-                    && b.StartAt < to
-                    && b.EndAt > from
-                    && (b.Status == BookingStatus.Confirmed
-                        || b.Status == BookingStatus.PickedUp
-                        || (b.Status == BookingStatus.Pending && b.PendingExpiresAt > now))));
+        public async Task<VehicleImage?> GetImageByIdAsync(int imageId) =>
+            await _context.VehicleImages.FindAsync(imageId);
 
-                // TODO (Anbu): also exclude vehicles with a maintenance block overlapping [from, to)
-            }
+        public void DeleteImage(VehicleImage image) => _context.VehicleImages.Remove(image);
 
-            // TODO (Anbu): feature filter, e.g.
-            // if (criteria.FeatureIds is { Count: > 0 })
-            //     query = query.Where(v => criteria.FeatureIds.All(f => v.Features.Any(vf => vf.FeatureId == f)));
+        // Documents
+        public async Task AddDocumentAsync(VehicleDocument document) =>
+            await _context.VehicleDocuments.AddAsync(document);
 
-            var total = await query.CountAsync(ct);
-            var items = await query
-                .OrderBy(v => v.DailyRate)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(ct);
+        public async Task<VehicleDocument?> GetDocumentByIdAsync(int documentId) =>
+            await _context.VehicleDocuments.FindAsync(documentId);
 
-            return (items, total);
-        }
+        public void DeleteDocument(VehicleDocument document) =>
+            _context.VehicleDocuments.Remove(document);
+
+        public async Task<IEnumerable<VehicleDocument>> GetDocumentsExpiringBeforeAsync(DateOnly date) =>
+            await _context.VehicleDocuments.AsNoTracking()
+                .Include(d => d.Vehicle)
+                .Where(d => d.ExpiryDate <= date)
+                .OrderBy(d => d.ExpiryDate)
+                .ToListAsync();
     }
 }

@@ -8,16 +8,18 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="16.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\VehicleRentalSystem.Domain\VehicleRentalSystem.Domain.csproj" />
-    <ProjectReference Include="..\VehicleRentalSystem.Infrastructure\VehicleRentalSystem.Infrastructure.csproj" />
+	<ProjectReference Include="..\VehicleRentalSystem.Infrastructure\VehicleRentalSystem.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

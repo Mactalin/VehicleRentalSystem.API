@@ -2,6 +2,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using VehicleRentalSystem.Domain.Exceptions;
+using VehicleRentalSystem.Application.Exceptions;
 
 namespace VehicleRentalSystem.Middleware
 {
@@ -45,8 +46,8 @@ namespace VehicleRentalSystem.Middleware
 
             var sql = ex.GetBaseException() as SqlException;
 
-            var (status, title) = ex switch
-            {
+                var (status, title) = ex switch
+                {
                 NotFoundException => (StatusCodes.Status404NotFound, "Not found"),
                 BookingConflictException => (StatusCodes.Status409Conflict, "Booking conflict"),
                 DomainException => (StatusCodes.Status400BadRequest, "Request not allowed"),
@@ -55,7 +56,12 @@ namespace VehicleRentalSystem.Middleware
                 _ when sql is { Number: 1205 } => (StatusCodes.Status409Conflict, "Please retry"),           // deadlock victim
                 _ when sql is { Number: 2601 or 2627 } => (StatusCodes.Status409Conflict, "Duplicate value"), // unique index
                 _ => (StatusCodes.Status500InternalServerError, "Server error")
-            };
+                    NotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
+                    BadRequestException => (StatusCodes.Status400BadRequest, "Bad Request"),
+                    ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
+                    UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+                    _ => (StatusCodes.Status500InternalServerError, "Server Error")
+                };
 
             if (status >= 500) _logger.LogError(ex, "Unhandled exception on {Path}", context.Request.Path);
             else _logger.LogWarning("{Title} on {Path}: {Message}", title, context.Request.Path, ex.Message);
@@ -67,11 +73,13 @@ namespace VehicleRentalSystem.Middleware
                 < 500 => ex.Message,
                 _ => _env.IsDevelopment() ? ex.ToString() : "An unexpected error occurred."
             };
-
-            var problem = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
+                if (context.Response.HasStarted) throw;
+                var problem = new ProblemDetails
+                context.Response.StatusCode = status;
+                await context.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Status = status,
+                    Title = title,
                 Detail = detail,
                 Instance = context.Request.Path
             };
@@ -80,6 +88,10 @@ namespace VehicleRentalSystem.Middleware
             context.Response.Clear();
             context.Response.StatusCode = status;
             await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+                    // Never leak internal details for 500s
+                    Detail = status == 500 ? "An unexpected error occurred." : ex.Message
+                });
+            }
         }
     }
 }
