@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using VehicleRentalSystem.Domain.Common;
 using VehicleRentalSystem.Domain.Entities;
-
+//using VehicleRentalSystem.Domain.Interface_Repository;   // (only if needed)
 namespace VehicleRentalSystem.Infrastructure.Data;
 
 public class AppDbContext : DbContext
@@ -34,6 +34,19 @@ public class AppDbContext : DbContext
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<BranchOperatingHour> BranchOperatingHours => Set<BranchOperatingHour>();
     public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
+
+
+    // Lenin's modules (9-12)
+    public DbSet<Driver> Drivers => Set<Driver>();
+    public DbSet<AdditionalService> AdditionalServices => Set<AdditionalService>();
+    public DbSet<BookingDriver> BookingDrivers => Set<BookingDriver>();
+    public DbSet<BookingAdditionalService> BookingAdditionalServices => Set<BookingAdditionalService>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponUsage> CouponUsages => Set<CouponUsage>();
+    public DbSet<Offer> Offers => Set<Offer>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
