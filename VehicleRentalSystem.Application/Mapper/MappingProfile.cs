@@ -7,6 +7,13 @@ using VehicleRentalSystem.Application.Dtos.Category;
 using VehicleRentalSystem.Application.Dtos.Maintenance;
 using VehicleRentalSystem.Application.Dtos.User;
 using VehicleRentalSystem.Application.Dtos.Vehicle;
+using VehicleRentalSystem.Application.DTOs.AdditionalServices;
+using VehicleRentalSystem.Application.DTOs.Complaints;
+using VehicleRentalSystem.Application.DTOs.Coupons;
+using VehicleRentalSystem.Application.DTOs.Drivers;
+using VehicleRentalSystem.Application.DTOs.Notifications;
+using VehicleRentalSystem.Application.DTOs.Offers;
+using VehicleRentalSystem.Application.DTOs.Reviews;
 using VehicleRentalSystem.Domain.Entities;
 
 namespace VehicleRentalSystem.Application.Mapper
@@ -58,6 +65,45 @@ namespace VehicleRentalSystem.Application.Mapper
             CreateMap<MaintenanceRecord, MaintenanceDto>()
                 .ForMember(d => d.RegistrationNumber, o => o.MapFrom(s => s.Vehicle.RegistrationNumber));
             CreateMap<SaveMaintenanceDto, MaintenanceRecord>();
+
+            //Lenin
+            // Drivers
+            CreateMap<Driver, DriverDto>();
+            CreateMap<CreateDriverDto, Driver>();
+            CreateMap<UpdateDriverDto, Driver>();
+
+            // Additional Services
+            CreateMap<AdditionalService, AdditionalServiceDto>();
+            CreateMap<CreateAdditionalServiceDto, AdditionalService>();
+            CreateMap<UpdateAdditionalServiceDto, AdditionalService>();
+
+            // Coupons
+            CreateMap<Coupon, CouponDto>();
+            CreateMap<CreateCouponDto, Coupon>();
+
+            // Offers
+            CreateMap<Offer, OfferDto>();
+            CreateMap<CreateOfferDto, Offer>();
+            CreateMap<UpdateOfferDto, Offer>();
+
+            // Reviews
+            CreateMap<Review, ReviewDto>()
+                .ForMember(d => d.CustomerName,
+                    o => o.MapFrom(s => s.Customer != null ? s.Customer.FullName : null))
+                .ForMember(d => d.DriverName,
+                    o => o.MapFrom(s => s.Driver != null ? s.Driver.FullName : null));
+            CreateMap<CreateReviewDto, Review>();
+
+            // Complaints
+            CreateMap<Complaint, ComplaintDto>()
+                .ForMember(d => d.CustomerName,
+                    o => o.MapFrom(s => s.Customer != null ? s.Customer.FullName : null));
+            CreateMap<CreateComplaintDto, Complaint>();
+
+            // Notifications
+            CreateMap<Notification, NotificationDto>();
+            CreateMap<CreateNotificationDto, Notification>();
+
         }
     }
 }
