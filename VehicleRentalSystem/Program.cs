@@ -4,25 +4,19 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using VehicleRentalSystem.Application.Common;
 using VehicleRentalSystem.Application.Interface_Service;
 using VehicleRentalSystem.Application.Mapper;
 using VehicleRentalSystem.Application.Services;
 using VehicleRentalSystem.Authorization;
+using VehicleRentalSystem.BackgroundServices;
 using VehicleRentalSystem.Domain.Interface_Repository;
 using VehicleRentalSystem.Infrastructure.Data;
 using VehicleRentalSystem.Infrastructure.Data.Seed;
 using VehicleRentalSystem.Infrastructure.Repository;
 using VehicleRentalSystem.Infrastructure.Security;
-using VehicleRentalSystem.Middleware;
-
-using System.Text.Json.Serialization;
-using VehicleRentalSystem.Application.Interface_Service;
-using VehicleRentalSystem.Application.Mapper;
-using VehicleRentalSystem.Application.Services;
-using VehicleRentalSystem.BackgroundServices;
-using VehicleRentalSystem.Domain.Interface_Repository;
-using VehicleRentalSystem.Infrastructure.Repository;
 using VehicleRentalSystem.JsonConverters;
+using VehicleRentalSystem.Middleware;
 
 namespace VehicleRentalSystem
 {
@@ -31,23 +25,65 @@ namespace VehicleRentalSystem
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            // ---------- AutoMapper ----------
+
+            // ---------- Database ----------
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            // ---------- Settings ----------
+            builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+            builder.Services.AddSingleton(
+                builder.Configuration.GetSection("Billing").Get<BillingSettings>() ?? new BillingSettings());
+            builder.Services.AddSingleton<BranchClock>();
+
+            // ---------- AutoMapper (one registration for both teammates' profiles) ----------
+            var mapperAssemblies = new[]
+            {
+                typeof(MappingProfile).Assembly,
+                typeof(CustomerMappingProfile).Assembly
+            }.Distinct().ToArray();
+
             builder.Services.AddAutoMapper(cfg =>
             {
                 cfg.LicenseKey = builder.Configuration["AutoMapper:LicenseKey"];
-                cfg.AddMaps(typeof(CustomerMappingProfile).Assembly);
+                cfg.AddMaps(mapperAssemblies);
             });
-            // ---------- Repositories (Infrastructure) ----------
+
+            // ---------- Repositories ----------
             builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+            // Anbu
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+            builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+            builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+            builder.Services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
+
+            // Mac
             builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
             builder.Services.AddScoped<IKycRepository, KycRepository>();
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IInspectionRepository, InspectionRepository>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
             builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-            builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
+            builder.Services.AddScoped<IPricingRepository, PricingRepository>();
+            builder.Services.AddScoped<IBranchLookupRepository, BranchLookupRepository>();
+            builder.Services.AddScoped<IVehicleSearchRepository, VehicleSearchRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-            // ---------- Services (Application) ----------
+
+            // ---------- Services ----------
+            // Anbu
+            builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+            builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IVehicleService, VehicleService>();
+            builder.Services.AddScoped<ICategoryService, CategoryService>();
+            builder.Services.AddScoped<IPricingService, PricingService>();
+            builder.Services.AddScoped<IBranchService, BranchService>();
+            builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+
+            // Mac
             builder.Services.AddScoped<IPriceCalculator, PriceCalculator>();
             builder.Services.AddScoped<IPaymentGateway, MockPaymentGateway>();   // swap for Razorpay/Stripe later
             builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -59,36 +95,7 @@ namespace VehicleRentalSystem
             // ---------- Background jobs ----------
             builder.Services.AddHostedService<BookingExpiryWorker>();
 
-
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-            builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-
-            builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(MappingProfile).Assembly));
-
-
-            builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            builder.Services.AddScoped<IUserRepository, UserRepository>();
-            builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
-            builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
-            builder.Services.AddScoped<IBranchRepository, BranchRepository>();
-            builder.Services.AddScoped<IMaintenanceRepository, MaintenanceRepository>();
-
-
-            builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-            builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
-
-
-            builder.Services.AddScoped<IAuthService, AuthService>();
-            builder.Services.AddScoped<IUserService, UserService>();
-            builder.Services.AddScoped<IVehicleService, VehicleService>();
-            builder.Services.AddScoped<ICategoryService, CategoryService>();
-            builder.Services.AddScoped<IPricingService, PricingService>();
-            builder.Services.AddScoped<IBranchService, BranchService>();
-            builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
-
-
+            // ---------- Authentication (Anbu) ----------
             var jwt = builder.Configuration.GetSection("Jwt");
             var jwtKey = jwt["Key"];
             if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
@@ -113,43 +120,40 @@ namespace VehicleRentalSystem
                     };
                 });
 
-
             builder.Services.AddAuthorizationBuilder()
-                   .AddPolicy(Policies.AdminOnly, p => p.RequireRole("Admin"))
-                   .AddPolicy(Policies.AdminOrManager, p => p.RequireRole("Admin", "Manager"))
-                   .AddPolicy(Policies.StaffAndAbove, p => p.RequireRole("Admin", "Manager", "Staff"));
-            // Add services to the container.
+                .AddPolicy(Policies.AdminOnly, p => p.RequireRole("Admin"))
+                .AddPolicy(Policies.AdminOrManager, p => p.RequireRole("Admin", "Manager"))
+                .AddPolicy(Policies.StaffAndAbove, p => p.RequireRole("Admin", "Manager", "Staff"));
 
-            builder.Services.AddControllers();
+            // ---------- Controllers and JSON ----------
             builder.Services
-    .AddControllers()
-    .AddJsonOptions(o =>
-    {
-        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());     // "Confirmed" instead of 2
-        o.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());        // always UTC with a trailing Z
-        o.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
-    });
-           builder.Services.AddCors(options =>
-                     options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+                .AddControllers()
+                .AddJsonOptions(o =>
+                {
+                    o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());   // "Confirmed" instead of 2
+                    o.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());      // always UTC with a trailing Z
+                    o.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
+                });
 
+            builder.Services.AddCors(options =>
+                options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
             var app = builder.Build();
 
+            // ---------- Development only: create the database and seed test data ----------
+            if (app.Environment.IsDevelopment())
+            {
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Database.Migrate();
+                DbSeeder.SeedAsync(db).GetAwaiter().GetResult();
+                //DevDataSeeder.SeedAsync(db).GetAwaiter().GetResult();
+            }
 
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            //    db.Database.Migrate();
-            //    DbSeeder.SeedAsync(db).GetAwaiter().GetResult();
-            //}
-
-
-            // Configure the HTTP request pipeline.
-
-            app.UseMiddleware<ExceptionHandlingMiddleware>();
+            // ---------- Pipeline ----------
+            app.UseMiddleware<ExceptionHandlingMiddleware>();    // first, so it catches everything below
 
             if (app.Environment.IsDevelopment())
             {

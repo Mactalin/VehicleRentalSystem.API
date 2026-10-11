@@ -1,18 +1,13 @@
 ﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using VehicleRentalSystem.Domain.Common;
 using VehicleRentalSystem.Domain.Entities;
 
-
 namespace VehicleRentalSystem.Infrastructure.Data;
 
-    public class AppDbContext : DbContext
-    {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     // Mac's modules
     public DbSet<Customer> Customers => Set<Customer>();
@@ -25,29 +20,27 @@ namespace VehicleRentalSystem.Infrastructure.Data;
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
-        public DbSet<Role> Roles => Set<Role>();
-        public DbSet<User> Users => Set<User>();
 
-    // Anbu's modules (placeholders, he adds the rest: users, categories, maintenance ...)
-        public DbSet<Vehicle> Vehicles => Set<Vehicle>();
-        public DbSet<VehicleImage> VehicleImages => Set<VehicleImage>();
-        public DbSet<VehicleDocument> VehicleDocuments => Set<VehicleDocument>();
+    // Anbu's modules
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<VehicleImage> VehicleImages => Set<VehicleImage>();
+    public DbSet<VehicleDocument> VehicleDocuments => Set<VehicleDocument>();
+    public DbSet<VehicleCategory> VehicleCategories => Set<VehicleCategory>();
+    public DbSet<CategoryPricing> CategoryPricings => Set<CategoryPricing>();
+    public DbSet<SeasonalPricing> SeasonalPricings => Set<SeasonalPricing>();
+    public DbSet<AdditionalCharge> AdditionalCharges => Set<AdditionalCharge>();
+    public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<BranchOperatingHour> BranchOperatingHours => Set<BranchOperatingHour>();
+    public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
 
-        public DbSet<VehicleCategory> VehicleCategories => Set<VehicleCategory>();
-        public DbSet<CategoryPricing> CategoryPricings => Set<CategoryPricing>();
-        public DbSet<SeasonalPricing> SeasonalPricings => Set<SeasonalPricing>();
-        public DbSet<AdditionalCharge> AdditionalCharges => Set<AdditionalCharge>();
-
-        public DbSet<Branch> Branches => Set<Branch>();
-        public DbSet<BranchOperatingHour> BranchOperatingHours => Set<BranchOperatingHour>();
-        public DbSet<MaintenanceRecord> MaintenanceRecords => Set<MaintenanceRecord>();
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         base.OnModelCreating(modelBuilder);
 
-        // Picks up every IEntityTypeConfiguration<T> in this assembly (one file per entity)
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        // One IEntityTypeConfiguration<T> per entity, picked up automatically
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // Soft-delete filter on every entity that inherits BaseEntity
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -59,7 +52,7 @@ namespace VehicleRentalSystem.Infrastructure.Data;
             var body = Expression.Equal(isDeleted, Expression.Constant(false));
             entityType.SetQueryFilter(Expression.Lambda(body, parameter));
         }
-        }
+    }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -77,13 +70,12 @@ namespace VehicleRentalSystem.Infrastructure.Data;
                     entry.Entity.UpdatedAt = now;
                     break;
 
-                case EntityState.Deleted:           // convert hard delete into soft delete
+                case EntityState.Deleted:           // hard delete becomes soft delete
                     entry.State = EntityState.Modified;
                     entry.Entity.IsDeleted = true;
                     entry.Entity.UpdatedAt = now;
                     break;
             }
-            return base.SaveChangesAsync(cancellationToken);
         }
 
         return await base.SaveChangesAsync(cancellationToken);

@@ -1,4 +1,5 @@
 ﻿
+using VehicleRentalSystem.Domain.Common;
 using VehicleRentalSystem.Domain.Enums;
 using VehicleRentalSystem.Domain.Exceptions;
 

@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using VehicleRentalSystem.Domain.Exceptions;
-using VehicleRentalSystem.Application.Exceptions;
+using AppEx = VehicleRentalSystem.Application.Exceptions;
+using DomainEx = VehicleRentalSystem.Domain.Exceptions;
 
 namespace VehicleRentalSystem.Middleware
 {
@@ -46,40 +46,44 @@ namespace VehicleRentalSystem.Middleware
 
             var sql = ex.GetBaseException() as SqlException;
 
-                var (status, title) = ex switch
-                {
-                NotFoundException => (StatusCodes.Status404NotFound, "Not found"),
-                BookingConflictException => (StatusCodes.Status409Conflict, "Booking conflict"),
-                DomainException => (StatusCodes.Status400BadRequest, "Request not allowed"),
+            var (status, title) = ex switch
+            {
+                // Application layer
+                AppEx.NotFoundException => (StatusCodes.Status404NotFound, "Not found"),
+                AppEx.BadRequestException => (StatusCodes.Status400BadRequest, "Bad request"),
+                AppEx.ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
+                AppEx.UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+
+                // Domain layer (specific types before the DomainException base)
+                DomainEx.BookingConflictException => (StatusCodes.Status409Conflict, "Booking conflict"),
+                DomainEx.DomainException => (StatusCodes.Status400BadRequest, "Request not allowed"),
+
+                // Framework / infrastructure
                 UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
                 DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Concurrency conflict"),
-                _ when sql is { Number: 1205 } => (StatusCodes.Status409Conflict, "Please retry"),           // deadlock victim
-                _ when sql is { Number: 2601 or 2627 } => (StatusCodes.Status409Conflict, "Duplicate value"), // unique index
-                _ => (StatusCodes.Status500InternalServerError, "Server error")
-                    NotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
-                    BadRequestException => (StatusCodes.Status400BadRequest, "Bad Request"),
-                    ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
-                    UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
-                    _ => (StatusCodes.Status500InternalServerError, "Server Error")
-                };
+                _ when sql is { Number: 1205 } => (StatusCodes.Status409Conflict, "Please retry"),     // deadlock victim
+                _ when sql is { Number: 2601 or 2627 } => (StatusCodes.Status409Conflict, "Duplicate value"),  // unique index
+                _ => (StatusCodes.Status500InternalServerError, "Server error"),
+            };
 
-            if (status >= 500) _logger.LogError(ex, "Unhandled exception on {Path}", context.Request.Path);
-            else _logger.LogWarning("{Title} on {Path}: {Message}", title, context.Request.Path, ex.Message);
+            if (status >= 500)
+                _logger.LogError(ex, "Unhandled exception on {Path}", context.Request.Path);
+            else
+                _logger.LogWarning("{Title} on {Path}: {Message}", title, context.Request.Path, ex.Message);
 
             var detail = status switch
             {
                 < 500 when sql is { Number: 1205 } => "The system was busy. Please try again.",
                 < 500 when sql is { Number: 2601 or 2627 } => "A record with the same unique value already exists.",
                 < 500 => ex.Message,
+                // Never leak internal details for 500s outside development
                 _ => _env.IsDevelopment() ? ex.ToString() : "An unexpected error occurred."
             };
-                if (context.Response.HasStarted) throw;
-                var problem = new ProblemDetails
-                context.Response.StatusCode = status;
-                await context.Response.WriteAsJsonAsync(new ProblemDetails
-                {
-                    Status = status,
-                    Title = title,
+
+            var problem = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
                 Detail = detail,
                 Instance = context.Request.Path
             };
@@ -88,10 +92,6 @@ namespace VehicleRentalSystem.Middleware
             context.Response.Clear();
             context.Response.StatusCode = status;
             await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
-                    // Never leak internal details for 500s
-                    Detail = status == 500 ? "An unexpected error occurred." : ex.Message
-                });
-            }
         }
     }
 }

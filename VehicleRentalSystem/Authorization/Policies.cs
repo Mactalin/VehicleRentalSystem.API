@@ -8,4 +8,4 @@ namespace VehicleRentalSystem.Authorization;
         public const string AdminOrManager = "AdminOrManager";
         public const string StaffAndAbove = "StaffAndAbove";
     }
-}
+

@@ -1,5 +1,6 @@
 ﻿
 
+using VehicleRentalSystem.Domain.Common;
 using VehicleRentalSystem.Domain.Enums;
 
 namespace VehicleRentalSystem.Domain.Entities;

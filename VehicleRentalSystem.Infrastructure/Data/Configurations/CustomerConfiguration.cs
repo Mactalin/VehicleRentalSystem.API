@@ -21,7 +21,11 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(c => c.VerificationStatus).HasConversion<string>().HasMaxLength(20);
 
-        // One customer profile per user account
+        builder.HasOne<User>()
+               .WithMany()
+               .HasForeignKey(c => c.UserId)
+               .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(c => c.UserId).IsUnique().HasFilter("[IsDeleted] = 0");
         builder.HasIndex(c => c.Phone);
         builder.HasIndex(c => new { c.Status, c.VerificationStatus });

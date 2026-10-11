@@ -18,8 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VehicleRentalSystem.Domain\VehicleRentalSystem.Domain.csproj" />
-	<ProjectReference Include="..\VehicleRentalSystem.Infrastructure\VehicleRentalSystem.Infrastructure.csproj" />
-  </ItemGroup>
+	  <ProjectReference Include="..\VehicleRentalSystem.Domain\VehicleRentalSystem.Domain.csproj" />  </ItemGroup>
 
 </Project>

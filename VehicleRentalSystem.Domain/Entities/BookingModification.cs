@@ -1,4 +1,6 @@
-﻿namespace VehicleRentalSystem.Domain.Entities;
+﻿using VehicleRentalSystem.Domain.Common;
+
+namespace VehicleRentalSystem.Domain.Entities;
 
 public class BookingModification : BaseEntity
 {

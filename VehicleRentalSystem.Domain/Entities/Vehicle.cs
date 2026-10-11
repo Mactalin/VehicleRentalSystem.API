@@ -25,7 +25,6 @@ namespace VehicleRentalSystem.Domain.Entities
 
         public VehicleStatus Status { get; set; } = VehicleStatus.Available;
         public bool IsActive { get; set; } = true;
-}
 
         public VehicleCategory Category { get; set; } = null!;
         public Branch Branch { get; set; } = null!;

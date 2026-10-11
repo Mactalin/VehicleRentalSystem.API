@@ -12,8 +12,8 @@ namespace VehicleRentalSystem.Infrastructure.Repository
     {
         public UserRepository(AppDbContext context) : base(context) { }
 
-        public override async Task<User?> GetByIdAsync(int id) =>
-            await _dbSet.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
+        public override async Task<User?> GetByIdAsync(int id, CancellationToken ct = default) =>
+    await _dbSet.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id, ct);
 
         public async Task<User?> GetByEmailAsync(string email) =>
             await _dbSet.Include(u => u.Role)

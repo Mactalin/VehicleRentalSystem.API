@@ -3,7 +3,6 @@ using VehicleRentalSystem.Application.Common;
 using VehicleRentalSystem.Application.Dtos.Bookings;
 using VehicleRentalSystem.Application.Interface_Service;
 using VehicleRentalSystem.Domain.Entities;
-
 using VehicleRentalSystem.Domain.Enums;
 using VehicleRentalSystem.Domain.Exceptions;
 using VehicleRentalSystem.Domain.Interface_Repository;
@@ -17,17 +16,25 @@ public class BookingService : IBookingService
     private readonly IPriceCalculator _pricing;
     private readonly IPaymentService _payments;
     private readonly IInvoiceService _invoices;
+    private readonly IPricingRepository _pricingRepo;
+    private readonly IBranchLookupRepository _branches;
+    private readonly BranchClock _clock;
     private readonly BillingSettings _settings;
 
     public BookingService(
         IUnitOfWork uow, IMapper mapper, IPriceCalculator pricing,
-        IPaymentService payments, IInvoiceService invoices, BillingSettings settings)
+        IPaymentService payments, IInvoiceService invoices,
+        IPricingRepository pricingRepo, IBranchLookupRepository branches,
+        BranchClock clock, BillingSettings settings)
     {
         _uow = uow;
         _mapper = mapper;
         _pricing = pricing;
         _payments = payments;
         _invoices = invoices;
+        _pricingRepo = pricingRepo;
+        _branches = branches;
+        _clock = clock;
         _settings = settings;
     }
 
@@ -40,7 +47,7 @@ public class BookingService : IBookingService
         var vehicle = await _uow.Vehicles.GetByIdAsync(dto.VehicleId, ct)
             ?? throw new NotFoundException(nameof(Vehicle), dto.VehicleId);
 
-        return _pricing.Calculate(vehicle, dto.StartAt, dto.EndAt);
+        return await PriceAsync(vehicle.CategoryId, dto.StartAt, dto.EndAt, 0m, 0m, ct);
     }
 
     public async Task<BookingDto> CreateAsync(CreateBookingDto dto, CancellationToken ct = default)
@@ -58,19 +65,29 @@ public class BookingService : IBookingService
         var vehicle = await _uow.Vehicles.GetByIdAsync(dto.VehicleId, ct)
             ?? throw new NotFoundException(nameof(Vehicle), dto.VehicleId);
 
-        if (!vehicle.IsActive)
+        if (!vehicle.IsActive || vehicle.Status == VehicleStatus.Maintenance)
             throw new DomainException("This vehicle is not available for rental.");
 
-        // TODO (Lenin): add-on charges and coupon discount go in here
-        // TODO (Anbu): seasonal pricing multiplier goes in here
-        var quote = _pricing.Calculate(vehicle, dto.StartAt, dto.EndAt);
+        // The vehicle is physically at its own branch, so pickup must be there
+        if (dto.PickupBranchId.HasValue && dto.PickupBranchId.Value != vehicle.BranchId)
+            throw new DomainException("This vehicle is located at a different branch.");
 
-        var pickupBranch = dto.PickupBranchId ?? vehicle.BranchId;
+        var pickupBranch = vehicle.BranchId;
+        var dropBranch = dto.DropBranchId ?? pickupBranch;
+
+        if (!await _branches.BranchExistsAsync(dropBranch, ct))
+            throw new NotFoundException("Branch", dropBranch);
+
+        await EnsureBranchOpenAsync(pickupBranch, dto.StartAt, "pickup", ct);
+        await EnsureBranchOpenAsync(dropBranch, dto.EndAt, "return", ct);
+
+        // TODO (Lenin): add-on charges and coupon discount go in here
+        var quote = await PriceAsync(vehicle.CategoryId, dto.StartAt, dto.EndAt, 0m, 0m, ct);
 
         await _uow.BeginTransactionAsync(ct);
         try
         {
-            // Re-check inside the transaction so two customers cannot grab the same slot
+            // Re-check inside the transaction (bookings AND maintenance) so two customers cannot grab the same slot
             if (!await _uow.Bookings.IsVehicleAvailableAsync(vehicle.Id, dto.StartAt, dto.EndAt, null, ct))
                 throw new BookingConflictException();
 
@@ -80,7 +97,7 @@ public class BookingService : IBookingService
                 CustomerId = customer.Id,
                 VehicleId = vehicle.Id,
                 PickupBranchId = pickupBranch,
-                DropBranchId = dto.DropBranchId ?? pickupBranch,
+                DropBranchId = dropBranch,
                 StartAt = dto.StartAt,
                 EndAt = dto.EndAt,
                 Status = BookingStatus.Pending,
@@ -144,15 +161,19 @@ public class BookingService : IBookingService
         if (!customer.CanBook(dto.NewEndAt, out var reason))
             throw new DomainException(reason);
 
+        await EnsureBranchOpenAsync(booking.PickupBranchId, dto.NewStartAt, "pickup", ct);
+        await EnsureBranchOpenAsync(booking.DropBranchId, dto.NewEndAt, "return", ct);
+
+        // The new dates are re-priced at current rates
+        var quote = await PriceAsync(booking.Vehicle.CategoryId, dto.NewStartAt, dto.NewEndAt,
+            booking.AddOnAmount, booking.DiscountAmount, ct);
+
         await _uow.BeginTransactionAsync(ct);
         try
         {
             if (!await _uow.Bookings.IsVehicleAvailableAsync(
                     booking.VehicleId, dto.NewStartAt, dto.NewEndAt, booking.Id, ct))
                 throw new BookingConflictException();
-
-            var quote = _pricing.Calculate(booking.Vehicle, dto.NewStartAt, dto.NewEndAt,
-                booking.AddOnAmount, booking.DiscountAmount);
 
             booking.Modifications.Add(new BookingModification
             {
@@ -255,9 +276,10 @@ public class BookingService : IBookingService
             InspectedByUserId = staffUserId
         });
 
+        booking.Vehicle.Status = VehicleStatus.Rented;
         booking.MarkPickedUp(now);
-        await _uow.SaveChangesAsync(ct);
 
+        await _uow.SaveChangesAsync(ct);
         return await GetByIdAsync(booking.Id, ct);
     }
 
@@ -289,7 +311,10 @@ public class BookingService : IBookingService
 
         booking.MarkReturned(now, dto.DamageCharge);       // calculates the late fee
 
-        // TODO (Anbu): move the vehicle to booking.DropBranchId and update its odometer/status here
+        // The vehicle is back, and it now sits at the drop-off branch
+        booking.Vehicle.Status = VehicleStatus.Available;
+        booking.Vehicle.OdometerKm = dto.OdometerReading;
+        booking.Vehicle.BranchId = booking.DropBranchId;
 
         await _uow.SaveChangesAsync(ct);
 
@@ -356,5 +381,34 @@ public class BookingService : IBookingService
             throw new DomainException("The start time cannot be in the past.");
         if (end <= start)
             throw new DomainException("The end time must be after the start time.");
+    }
+
+    private async Task<PriceQuoteDto> PriceAsync(
+        int categoryId, DateTime start, DateTime end, decimal addOn, decimal discount, CancellationToken ct)
+    {
+        var pricing = await _pricingRepo.GetPricingAsync(categoryId, ct)
+            ?? throw new DomainException("No pricing is configured for this vehicle's category.");
+
+        var multiplier = await _pricingRepo.GetSeasonalMultiplierAsync(categoryId, _clock.LocalDate(start), ct);
+        return _pricing.Calculate(pricing, start, end, addOn, discount, multiplier);
+    }
+
+    /// Branch hours are in local time. A branch with no hours defined for that day is not restricted.
+    private async Task EnsureBranchOpenAsync(int branchId, DateTime utcTime, string what, CancellationToken ct)
+    {
+        if (!_settings.EnforceBranchHours) return;
+
+        var local = _clock.ToLocal(utcTime);
+        var hours = await _branches.GetOperatingHourAsync(branchId, local.DayOfWeek, ct);
+        if (hours is null) return;
+
+        if (hours.IsClosed)
+            throw new DomainException($"The branch is closed on {local:dddd}. Please choose another {what} day.");
+
+        var time = TimeOnly.FromDateTime(local);
+        if (time < hours.OpenTime || time > hours.CloseTime)
+            throw new DomainException(
+                $"The requested {what} time ({local:ddd HH:mm}) is outside branch hours " +
+                $"({hours.OpenTime:HH\\:mm} to {hours.CloseTime:HH\\:mm}).");
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using VehicleRentalSystem.Domain.Enums;
 
 namespace VehicleRentalSystem.Application.Dtos.Search
 {
@@ -13,7 +14,9 @@ namespace VehicleRentalSystem.Application.Dtos.Search
         public int? CategoryId { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
-        public List<int>? FeatureIds { get; set; }
+        public FuelType? FuelType { get; set; }
+        public TransmissionType? Transmission { get; set; }
+        public int? MinSeatingCapacity { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }
