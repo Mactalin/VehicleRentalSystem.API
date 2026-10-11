@@ -13,10 +13,12 @@ using VehicleRentalSystem.BackgroundServices;
 using VehicleRentalSystem.Domain.Interface_Repository;
 using VehicleRentalSystem.Infrastructure.Data;
 using VehicleRentalSystem.Infrastructure.Data.Seed;
+using VehicleRentalSystem.Infrastructure.Notifications;
 using VehicleRentalSystem.Infrastructure.Repository;
 using VehicleRentalSystem.Infrastructure.Security;
 using VehicleRentalSystem.JsonConverters;
 using VehicleRentalSystem.Middleware;
+
 
 namespace VehicleRentalSystem
 {
@@ -71,6 +73,20 @@ namespace VehicleRentalSystem
             builder.Services.AddScoped<IVehicleSearchRepository, VehicleSearchRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            // ============ LENIN: Repositories (Modules 9-12) ============
+            builder.Services.AddScoped<IDriverRepository, DriverRepository>();
+            builder.Services.AddScoped<IAdditionalServiceRepository, AdditionalServiceRepository>();
+            builder.Services.AddScoped<IBookingDriverRepository, BookingDriverRepository>();
+            builder.Services.AddScoped<IBookingAdditionalServiceRepository, BookingAdditionalServiceRepository>();
+            builder.Services.AddScoped<ICouponRepository, CouponRepository>();
+            builder.Services.AddScoped<IOfferRepository, OfferRepository>();
+            builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+            builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
+            builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+            builder.Services.AddScoped<IReportRepository, ReportRepository>();
+            // ===========================================================
+
+
             // ---------- Services ----------
             // Anbu
             builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -91,6 +107,28 @@ namespace VehicleRentalSystem
             builder.Services.AddScoped<IBookingService, BookingService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+
+
+            // ============ LENIN: Application services ============
+            builder.Services.AddScoped<IDriverService, DriverService>();
+            builder.Services.AddScoped<IAdditionalServiceService, AdditionalServiceService>();
+            builder.Services.AddScoped<IBookingDriverService, BookingDriverService>();
+            builder.Services.AddScoped<IBookingAdditionalServiceService, BookingAdditionalServiceService>();
+            builder.Services.AddScoped<ICouponService, CouponService>();
+            builder.Services.AddScoped<IOfferService, OfferService>();
+            builder.Services.AddScoped<IReviewService, ReviewService>();
+            builder.Services.AddScoped<IComplaintService, ComplaintService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<IDashboardService, DashboardService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+
+            // ============ LENIN: Notification pipeline ============
+            builder.Services.AddScoped<INotificationChannel, EmailNotificationChannel>();
+            builder.Services.AddScoped<INotificationChannel, SmsNotificationChannel>();
+            builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+            builder.Services.AddScoped<INotificationTriggerService, NotificationTriggerService>();
+            // ======================================================
+
 
             // ---------- Background jobs ----------
             builder.Services.AddHostedService<BookingExpiryWorker>();
@@ -134,6 +172,8 @@ namespace VehicleRentalSystem
                     o.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());      // always UTC with a trailing Z
                     o.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
                 });
+
+            builder.Services.AddHttpContextAccessor();   // ← required by Lenin's controllers
 
             builder.Services.AddCors(options =>
                 options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
