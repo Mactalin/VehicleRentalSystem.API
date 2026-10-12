@@ -12,7 +12,7 @@ public class OfferRepository : GenericRepository<Offer>, IOfferRepository
     public async Task<IEnumerable<Offer>> GetRunningAsync(CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        return await _db.Offers
+        return await _context.Offers
             .Where(o => o.IsActive && o.StartDate <= now && o.EndDate >= now)
             .OrderBy(o => o.EndDate)
             .ToListAsync(ct);

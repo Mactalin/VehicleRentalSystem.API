@@ -10,26 +10,26 @@ public class ReviewRepository : GenericRepository<Review>, IReviewRepository
     public ReviewRepository(AppDbContext db) : base(db) { }
 
     public async Task<IEnumerable<Review>> GetByVehicleIdAsync(int vehicleId, CancellationToken ct = default)
-        => await _db.Reviews
+        => await _context.Reviews
             .Where(r => r.VehicleId == vehicleId)
             .OrderByDescending(r => r.PostedAt)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<Review>> GetByDriverIdAsync(int driverId, CancellationToken ct = default)
-        => await _db.Reviews
+        => await _context.Reviews
             .Where(r => r.DriverId == driverId)
             .OrderByDescending(r => r.PostedAt)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<Review>> GetByCustomerIdAsync(int customerId, CancellationToken ct = default)
-        => await _db.Reviews
+        => await _context.Reviews
             .Where(r => r.CustomerId == customerId)
             .OrderByDescending(r => r.PostedAt)
             .ToListAsync(ct);
 
     public async Task<double> GetAverageRatingForVehicleAsync(int vehicleId, CancellationToken ct = default)
     {
-        var ratings = await _db.Reviews
+        var ratings = await _context.Reviews
             .Where(r => r.VehicleId == vehicleId)
             .Select(r => r.Rating)
             .ToListAsync(ct);
@@ -39,7 +39,7 @@ public class ReviewRepository : GenericRepository<Review>, IReviewRepository
 
     public async Task<double> GetAverageRatingForDriverAsync(int driverId, CancellationToken ct = default)
     {
-        var ratings = await _db.Reviews
+        var ratings = await _context.Reviews
             .Where(r => r.DriverId == driverId)
             .Select(r => r.Rating)
             .ToListAsync(ct);
@@ -48,5 +48,5 @@ public class ReviewRepository : GenericRepository<Review>, IReviewRepository
     }
 
     public async Task<bool> HasReviewedBookingAsync(int bookingId, CancellationToken ct = default)
-        => await _db.Reviews.AnyAsync(r => r.BookingId == bookingId, ct);
+        => await _context.Reviews.AnyAsync(r => r.BookingId == bookingId, ct);
 }

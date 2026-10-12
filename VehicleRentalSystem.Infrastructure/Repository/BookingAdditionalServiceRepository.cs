@@ -10,7 +10,7 @@ public class BookingAdditionalServiceRepository : GenericRepository<BookingAddit
     public BookingAdditionalServiceRepository(AppDbContext db) : base(db) { }
 
     public async Task<IEnumerable<BookingAdditionalService>> GetByBookingIdAsync(int bookingId, CancellationToken ct = default)
-        => await _db.BookingAdditionalServices
+        => await _context.BookingAdditionalServices
             .Include(b => b.AdditionalService)
             .Where(b => b.BookingId == bookingId)
             .ToListAsync(ct);

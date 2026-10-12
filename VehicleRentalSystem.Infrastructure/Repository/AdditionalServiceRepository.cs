@@ -11,13 +11,13 @@ public class AdditionalServiceRepository : GenericRepository<AdditionalService>,
     public AdditionalServiceRepository(AppDbContext db) : base(db) { }
 
     public async Task<IEnumerable<AdditionalService>> GetActiveAsync(CancellationToken ct = default)
-        => await _db.AdditionalServices
+        => await _context.AdditionalServices
             .Where(s => s.IsActive)
             .OrderBy(s => s.Name)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<AdditionalService>> GetByTypeAsync(ServiceType type, CancellationToken ct = default)
-        => await _db.AdditionalServices
+        => await _context.AdditionalServices
             .Where(s => s.Type == type && s.IsActive)
             .ToListAsync(ct);
 }

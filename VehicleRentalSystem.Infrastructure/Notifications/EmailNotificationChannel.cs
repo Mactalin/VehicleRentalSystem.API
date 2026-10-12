@@ -47,7 +47,7 @@ public class EmailNotificationChannel : INotificationChannel
             msg.Subject = request.Subject;
             msg.Body = new BodyBuilder { TextBody = text, HtmlBody = html }.ToMessageBody();
 
-            using var client = new SmtpClient();
+            using var client = new MailKit.Net.Smtp.SmtpClient();
             await client.ConnectAsync(_settings.SmtpServer, _settings.Port,
                 MailKit.Security.SecureSocketOptions.StartTls, ct);
             await client.AuthenticateAsync(_settings.Username, _settings.Password, ct);

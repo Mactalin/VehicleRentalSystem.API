@@ -11,14 +11,14 @@ public class CouponRepository : GenericRepository<Coupon>, ICouponRepository
     public CouponRepository(AppDbContext db) : base(db) { }
 
     public async Task<Coupon?> GetByCodeAsync(string code, CancellationToken ct = default)
-        => await _db.Coupons
+        => await _context.Coupons
             .Include(c => c.Usages)
             .FirstOrDefaultAsync(c => c.Code == code, ct);
 
     public async Task<IEnumerable<Coupon>> GetActiveAsync(CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        return await _db.Coupons
+        return await _context.Coupons
             .Where(c => c.IsActive
                      && c.Status == CouponStatus.Active
                      && c.ValidFrom <= now
@@ -28,6 +28,6 @@ public class CouponRepository : GenericRepository<Coupon>, ICouponRepository
     }
 
     public async Task<int> GetUsageCountAsync(int couponId, int customerId, CancellationToken ct = default)
-        => await _db.CouponUsages
+        => await _context.CouponUsages
             .CountAsync(u => u.CouponId == couponId && u.CustomerId == customerId, ct);
 }

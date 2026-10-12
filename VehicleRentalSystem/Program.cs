@@ -24,13 +24,13 @@ namespace VehicleRentalSystem
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main(string[] args) 
         {
             var builder = WebApplication.CreateBuilder(args);
 
             // ---------- Database ----------
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("VehicleRentalCS")));
 
             // ---------- Settings ----------
             builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));

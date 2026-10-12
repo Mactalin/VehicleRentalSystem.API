@@ -11,13 +11,13 @@ public class ComplaintRepository : GenericRepository<Complaint>, IComplaintRepos
     public ComplaintRepository(AppDbContext db) : base(db) { }
 
     public async Task<IEnumerable<Complaint>> GetByStatusAsync(ComplaintStatus status, CancellationToken ct = default)
-        => await _db.Complaints
+        => await _context.Complaints
             .Where(c => c.Status == status)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
 
     public async Task<IEnumerable<Complaint>> GetByCustomerIdAsync(int customerId, CancellationToken ct = default)
-        => await _db.Complaints
+        => await _context.Complaints
             .Where(c => c.CustomerId == customerId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(ct);
